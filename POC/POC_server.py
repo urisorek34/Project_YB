@@ -3,8 +3,8 @@ import json
 from select import select
 from threading import Thread
 
-computers_connected = {}
-sub_comp = {}
+computers_connected = {}  # addr:sock
+sub_comp = {}  # addr:name
 myHost = ""
 myPort = 55555
 portsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create socketTCP
@@ -22,10 +22,10 @@ def input_user():
     while 1:
         # gets input of ip addr and command you want to execute on the LAN/computer
         comm_addr = input("ip of the router/computer --> ")
-        if comm_addr in computers_connected:
+        if comm_addr in computers_connected.keys():
             command = input("the command you want to sand --> ")
 
-            if command not in ["new", "del", "comp","rout", "done"]:
+            if command not in ["new", "del", "comp", "rout", "done","tcp","icmp","ping"]:
                 print("Wrong command :(")
                 command = ""
 
@@ -60,13 +60,15 @@ def input_user():
                     print(comp)
                     print(f"Total of {count} routers")
 
+            computers_connected[comm_addr].send(command.encode())  # sends the relevant command
 
 
         else:
             print("Wrong address :(")
             comm_addr = ""
 
-def find_key_by_value(dct,value):
+
+def find_key_by_value(dct, value):
     """
 
     :param dct: dictionary
@@ -76,9 +78,6 @@ def find_key_by_value(dct,value):
     for key, val in dct.items():
         if val == value:
             return key
-
-
-
 
 
 def sock():
@@ -106,9 +105,10 @@ def sock():
             if sockobj in mainsocks:
                 # accept new clients to the server
                 newsock, address = sockobj.accept()
-                computers_connected.update({address: newsock})
-                sub_comp.update({address:[]})
-                newsock.send(f"Hello {address} welcome to Uri's Packet Tracer!")
+                computers_connected.update({address[0]: newsock})
+                print(computers_connected)
+                sub_comp.update({address[0]: []})
+                newsock.send(f"Hello {address} welcome to Uri's Packet Tracer!".encode())
                 readsocks.append(newsock)
 
             else:
@@ -120,7 +120,7 @@ def sock():
                     sockobj.close()
                     # delete the computer from the list
 
-                    addre_sub= find_key_by_value(computers_connected,sockobj)
+                    addre_sub = find_key_by_value(computers_connected, sockobj)
                     computers_connected.pop(addre_sub)
                     sub_comp.pop(addre_sub)
                     readsocks.remove(sockobj)
@@ -137,8 +137,10 @@ def sock():
                         socket.send(data)
 
 
-input_thread = Thread(target=input_user())
+input_thread = Thread(target=input_user)
 input_thread.daemon = True  # stop execution of thread when code is stopped (when mainloop is closed by destroy())
 input_thread.start()
+
 sock()
+
 portsock.close()  # close the server socket

@@ -1,4 +1,4 @@
-import pydivert as pyd
+import pydivert as pd
 import scapy.all as sc
 from socket import socket, AF_INET, SOCK_STREAM
 import json
@@ -10,16 +10,11 @@ PORT = 55555
 HOST = "127.0.0.1"
 ADDR = (HOST, PORT)
 
-
 # vars for communicaition inside the LAN
-computers = {}
+computers = {}  # name:ip
 router_ip = sc.get_if_addr(sc.conf.iface)  # Get computer's ip
 available_ip = ["10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7", "10.0.0.8", "10.0.0.9",
-                "10.0.0.10"]
-
-
-
-
+                "10.0.0.10"]  # dhcp
 
 
 def create_new_process(msg):
@@ -28,9 +23,9 @@ def create_new_process(msg):
     :param msg:
     :return:
     """
-    global computers,available_ip
+    global computers, available_ip
     name = msg.split("_")[1]
-    computers.update({name:available_ip.pop(0)})
+    computers.update({name: available_ip.pop(0)})
 
 
 def delete_process(msg):
@@ -45,9 +40,6 @@ def delete_process(msg):
     computers.pop(name)
 
 
-
-
-
 def receive():
     global msg
     """Handles receiving of messages."""
@@ -55,6 +47,7 @@ def receive():
         # receiving messages
         try:
             msg = client_socket.recv(1024).decode("utf8")
+            print(msg)
 
             if "new" in msg:
                 create_new_process(msg)
@@ -65,6 +58,7 @@ def receive():
 
 
         except OSError:  # Possibly client has left the chat.
+
             client_socket.close()
 
 
@@ -81,10 +75,9 @@ while 1:
     try:
         client_socket.connect(ADDR)
         print(msg)
+        print("true")
         break
     except (ConnectionRefusedError, TimeoutError):
         continue
 
-receive_thread = Thread(target=receive)
-receive_thread.daemon = True  # stop execution of thread when code is stopped (when mainloop is closed by destroy())
-receive_thread.start()
+receive()
