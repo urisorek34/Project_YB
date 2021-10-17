@@ -21,11 +21,14 @@ def input_user():
     global command, comm_addr, sub_comp
     while 1:
         # gets input of ip addr and command you want to execute on the LAN/computer
+        print(f"name of ip option's: {computers_connected.keys()}")
         comm_addr = input("ip of the router/computer --> ")
         if comm_addr in computers_connected.keys():
+            print(
+                "command options --> new (process name),del (process name), comp, rout, done,tcp (src,dst,msg),ping (src,dst)")
             command = input("the command you want to sand --> ")
 
-            if command not in ["new", "del", "comp", "rout", "done","tcp","icmp","ping"]:
+            if command not in ["new", "del", "comp", "rout", "done", "tcp", "ping"]:
                 print("Wrong command :(")
                 command = ""
 
@@ -59,6 +62,29 @@ def input_user():
                 for comp in computers_connected:
                     print(comp)
                     print(f"Total of {count} routers")
+
+            if command == "tcp":
+                # tcp msg
+                print(f"src options : {sub_comp[comm_addr]}")
+                src = input("source (name) --> ")
+                while src not in sub_comp[comm_addr]:
+                    src = input("Name doesn't exist, try again --> ")
+                # print dst options
+                print(f"destination options:")
+                [print(sub_comp[ip]) for ip in sub_comp]
+
+                while 1:
+                    dst = input("source (name) --> ")
+                    for ip, name in sub_comp.items():
+                        if name != dst and dst in sub_comp.keys():
+                            msg = input("data --> ")
+                            command = f"tcp_{src}_{dst}_{msg}"
+                            break
+                    else:
+                        continue
+                    break
+
+
 
             computers_connected[comm_addr].send(command.encode())  # sends the relevant command
 
@@ -114,6 +140,9 @@ def sock():
             else:
                 try:
                     data = sockobj.recv(1024)
+
+                except ConnectionAbortedError:
+                    continue
                 except ConnectionResetError:
                     # a client left
                     print("server state: Sad :(\nReason: because client left :(")
@@ -135,6 +164,9 @@ def sock():
                     for socket in writeables:
                         # broadcasts (echo) all the messages to everyone.
                         socket.send(data)
+                
+               
+                
 
 
 input_thread = Thread(target=input_user)
