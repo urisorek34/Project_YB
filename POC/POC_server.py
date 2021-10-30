@@ -25,10 +25,10 @@ def input_user():
         comm_addr = input("ip of the router/computer --> ")
         if comm_addr in computers_connected.keys():
             print(
-                "command options --> new (process name),del (process name), comp, rout, done,tcp (src,dst,msg),ping (src,dst)")
+                "command options --> new (process name),del (process name), comp, rout, done,tcp (src,dst,msg),ping (src,dst), routmodify (ip,subnetmask)")
             command = input("the command you want to sand --> ")
 
-            if command not in ["new", "del", "comp", "rout", "done", "tcp", "ping"]:
+            if command not in ["new", "del", "comp", "rout", "done", "tcp", "ping", "routmodify"]:
                 print("Wrong command :(")
                 command = ""
 
@@ -72,19 +72,21 @@ def input_user():
                 # print dst options
                 print(f"destination options:")
                 [print(sub_comp[ip]) for ip in sub_comp]
-
-                while 1:
-                    dst = input("source (name) --> ")
-                    for ip, name in sub_comp.items():
-                        if name != dst and dst in sub_comp.keys():
-                            msg = input("data --> ")
-                            command = f"tcp_{src}_{dst}_{msg}"
-                            break
-                    else:
-                        continue
-                    break
-
-
+            
+                dst = input("destination (name) --> ")
+                for ip, name in sub_comp.items():
+                    if name != dst and dst in sub_comp.keys():
+                        msg = input("data --> ")
+                        command = f"tcp_{src}_{dst}_{msg}"
+                        break
+                if command == "tcp":
+                    print("not right destination")
+                
+            
+            if command == "routmodify":
+                print(f"route options : {computers_connected.keys()}")
+                add = input("enter 'ip,subnet mask'")
+                command = f"routmodify_[{add}]"
 
             computers_connected[comm_addr].send(command.encode())  # sends the relevant command
 
