@@ -4,12 +4,35 @@ from select import select
 from threading import Thread
 
 computers_connected = {}  # addr:sock
-sub_comp = {}  # addr:name
+sub_comp = {}  # addr:[ips]
 myHost = ""
 myPort = 55555
 portsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create socketTCP
 command = ""
 comm_addr = ""
+available_ip = ["10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7", "10.0.0.8", "10.0.0.9",
+                "10.0.0.10", "10.0.0.11", "10.0.0.12", "10.0.0.13", "10.0.0.14", "10.0.0.16"]  # dhcp
+available_ip1 = ["192.168.0.2", "192.168.0.3", "192.168.0.4", "192.168.0.5", "192.168.0.6", "192.168.0.7",
+                 "192.168.0.8", "192.168.0.9", "192.168.0.10", "192.168.0.11", "192.168.0.12", "192.168.0.13",
+                 "192.168.0.14", "192.168.0.16"]  # dhcp
+available_ip_comp = {}  # {router address :available ip}
+routing_tables = {} #address:[(ip,subnet mask)]
+check = False
+
+
+def mac_generator():
+    """
+
+    :return:
+    """
+    mac = ""
+    for i in range(6):
+        hx = hex(random.randint(0, 256))[2:]
+        if len(hx) == 1:
+            hx = "0" + hx
+        mac += hx + "-"
+
+    return mac[:-1]
 
 
 def input_user():
@@ -21,32 +44,30 @@ def input_user():
     global command, comm_addr, sub_comp
     while 1:
         # gets input of ip addr and command you want to execute on the LAN/computer
-        print(f"name of ip option's: {computers_connected.keys()}")
+        print(f"ip option's: {computers_connected.keys()}")
         comm_addr = input("ip of the router/computer --> ")
         if comm_addr in computers_connected.keys():
             print(
-                "command options --> new (process name),del (process name), comp, rout, done,tcp (src,dst,msg),ping (src,dst), routmodify (ip,subnetmask)")
+                "command options --> new (process ip),del (process ip), comp, rout, done,tcp (src,dst,msg),ping (src,dst), routadd (ip,subnetmask), seerout")
             command = input("the command you want to sand --> ")
 
-            if command not in ["new", "del", "comp", "rout", "done", "tcp", "ping", "routmodify"]:
+            if command not in ["new", "del", "comp", "rout", "done", "tcp", "ping", "routadd"]:
                 print("Wrong command :(")
                 command = ""
 
             if command == "new":
                 # new computer
-                name = input("name of the process --> ")
-                while name in sub_comp[comm_addr]:
-                    name = input("Name already exist, try again --> ")
-                command = f"new_{name}"
-                sub_comp[comm_addr].append(name)
+                command = f"new_{available_ip_comp[comm_addr]}_{mac_generator()}"
+                sub_comp[comm_addr].append(available_ip_comp[comm_addr].pop(0))
 
             if command == "del":
                 # delete computer
-                name = input("name of the process --> ")
-                while name not in sub_comp[comm_addr]:
-                    name = input("Name doesn't exist, try again --> ")
-                command = f"del_{name}"
-                sub_comp[comm_addr].remove(name)
+                ip_proc = input("ip of the process --> ")
+                while ip_proc not in sub_comp[comm_addr]:
+                    ip_proc = input("ip doesn't exist, try again --> ")
+                command = f"del_{ip_proc}"
+                available_ip_comp[comm_addr].append(ip_proc)
+                sub_comp[comm_addr].pop(ip_proc)
 
             if command == "comp":
                 # show all the computers in all the networks
@@ -66,27 +87,31 @@ def input_user():
             if command == "tcp":
                 # tcp msg
                 print(f"src options : {sub_comp[comm_addr]}")
-                src = input("source (name) --> ")
+                src = input("source (ip) --> ")
                 while src not in sub_comp[comm_addr]:
-                    src = input("Name doesn't exist, try again --> ")
+                    src = input("ip doesn't exist, try again --> ")
                 # print dst options
                 print(f"destination options:")
                 [print(sub_comp[ip]) for ip in sub_comp]
-            
-                dst = input("destination (name) --> ")
-                for ip, name in sub_comp.items():
-                    if name != dst and dst in sub_comp.keys():
+
+                dst = input("destination (ip) --> ")
+                print("dest options")
+                for ip, ips in sub_comp.items():
+                    if dst not in ips and dst in sub_comp.keys():
                         msg = input("data --> ")
                         command = f"tcp_{src}_{dst}_{msg}"
                         break
                 if command == "tcp":
                     print("not right destination")
-                
-            
-            if command == "routmodify":
+
+            if command == "routadd":
                 print(f"route options : {computers_connected.keys()}")
-                add = input("enter 'ip,subnet mask'")
-                command = f"routmodify_[{add}]"
+                add = input("enter 'ip,subnet mask' --> ")
+                routing_tables[comm_addr].append((add.split(",")[0],add.split(",")[1]))
+                command = f"routadd_({add})"
+
+            if command == "seerout":
+                print(routing_tables)
 
             computers_connected[comm_addr].send(command.encode())  # sends the relevant command
 
@@ -114,7 +139,7 @@ def sock():
     :return: True to get out.
     """
     # Create Sockets
-    global command, comm_addr, computers_connected
+    global command, comm_addr, computers_connected, check
     mainsocks, readsocks, writesocks = [], [], []
 
     portsock.bind((myHost, myPort))
@@ -134,8 +159,13 @@ def sock():
                 # accept new clients to the server
                 newsock, address = sockobj.accept()
                 computers_connected.update({address[0]: newsock})
-                print(computers_connected)
+                if check:
+                    available_ip_comp.update({address[0]: available_ip})
+                else:
+                    available_ip_comp.update({address[0]: available_ip1})
+
                 sub_comp.update({address[0]: []})
+                routing_tables[address[0]]=[]
                 newsock.send(f"Hello {address} welcome to Uri's Packet Tracer!".encode())
                 readsocks.append(newsock)
 
@@ -166,9 +196,6 @@ def sock():
                     for socket in writeables:
                         # broadcasts (echo) all the messages to everyone.
                         socket.send(data)
-                
-               
-                
 
 
 input_thread = Thread(target=input_user)

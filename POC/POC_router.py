@@ -6,6 +6,7 @@ import subprocess
 from threading import Thread
 import os
 from multiprocessing import Process
+import random
 
 # vars for communication with host
 msg = ""
@@ -14,22 +15,14 @@ HOST = "127.0.0.1"
 ADDR = (HOST, PORT)
 
 # vars for communicaition inside the LAN
+
 process_manager = {}
-computers = {}  # name:(ip,mac)
-router_ip = sc.get_if_addr(sc.conf.iface)  # Get computer's ip
-available_ip = ["10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7", "10.0.0.8", "10.0.0.9",
-                "10.0.0.10"]  # dhcp
-available_mac = ["98-CD-5D-A4-3F-86", "55-A9-88-92-4E-91", "73-AB-1E-8A-B6-9B", "4D-43-62-23-80-76",
-                 "9E-B7-16-F5-15-1D", "81-6B-00-82-58-BC", "23-AE-FE-B2-FE-20", "4F-CD-29-B2-3B-3F",
-                 "E2-09-65-93-AA-DE", "8C-E7-00-B8-42-B0"]  # macs address
-router_table = []
+router_ip = "10.0.0.1"
+
+computers = {}  # {ip:mac}
 
 
-def mac_generator():
-    """
-    generate mac addresses.
-    :return: 
-    """
+router_table = [] #(ip,mask)
 
 
 def arp_request(mac):
@@ -38,6 +31,7 @@ def arp_request(mac):
     :return: 
     """
     global router_table
+
 
 
 def run_command(cmd):
@@ -55,7 +49,7 @@ def run_command(cmd):
 
 def run_process_event(dir):
     """
-
+    runs process thread.
     :param dir:
     :return:
     """
@@ -69,14 +63,15 @@ def create_new_process(msg):
     create new process
     :param msg: the command from server
     """
-    global computers, available_ip,process_manager
-    name = msg.split("_")[1]
-    computers.update({name: (available_ip.pop(0), available_mac.pop(0))})
-    dir = fr"python C:\Users\admin\Documents\Uri\Project_YB\POC\POC_process.py {computers[name][0]} {computers[name][1]} {router_ip}"
+    global computers,process_manager
+    ip = msg.split("_")[1]
+    mac = msg.split("_")[2]
+    computers.update({ip:mac})
+    dir = fr"python C:\Users\admin\Documents\Uri\Project_YB\POC\POC_process.py {ip} {mac} {router_ip}"
 
-    process_manager[name] = Thread(target=run_process_event,args=(dir, ))
-    process_manager[name].demone = True
-    process_manager[name].start()
+    process_manager[ip] = Thread(target=run_process_event,args=(dir, ))
+    process_manager[ip].demone = True
+    process_manager[ip].start()
     print("f")
 
 
@@ -87,7 +82,7 @@ def modify_rout(msg):
     :param msg:
     """
     global router_table
-    router_table.append(json.load(msg.split("_")[1]))
+    router_table.append((msg.split("_")[1].split(",")[0],int(msg.split("_")[1].split(",")[1])))
 
 
 def delete_process(msg):
@@ -95,13 +90,10 @@ def delete_process(msg):
     create new process
     :param msg: the command from server
     """
-    global computers, available_ip,process_manager
-    name = msg.split("_")[1]
-    sc.send(sc.Ether(dst=computers[name][1]) / IP(dst=computers[name][1]) / TCP() / "EXIT_PR")
-    available_ip.append(computers[name][0])
-    available_mac.append(computers[name][1])
-    computers.pop(name)
-    process_manager[name].terminate()
+    global computers, process_manager
+    ip = msg.split("_")[1]
+    computers.pop(ip)
+    process_manager[ip].terminate()
 
 
 def send_tcp(msg):
@@ -138,7 +130,7 @@ def receive():
             if "tcp" in msg:
                 send_tcp(msg)
 
-            if "mdifyrout" in msg:
+            if "routadd" in msg:
                 modify_rout(msg)
 
 

@@ -8,7 +8,7 @@ if len(sys.argv) > 1:
     router_ip = sys.argv[3]
 else:
     print("no args")
-
+arp_table = [] # list of tuples (ip,mac)
 def sniff_ip():
     """
     sniffing packets and sending packets required
