@@ -1,4 +1,4 @@
-import pydivert as pyd
+import pydivert
 import scapy.all as sc
 from socket import socket, AF_INET, SOCK_STREAM
 import json
@@ -21,8 +21,7 @@ router_ip = "10.0.0.1"
 
 computers = {}  # {ip:mac}
 
-
-router_table = [] #(ip,mask)
+router_table = {}  # {ip:(mask,interface)}
 
 
 def arp_request(mac):
@@ -31,7 +30,6 @@ def arp_request(mac):
     :return: 
     """
     global router_table
-
 
 
 def run_command(cmd):
@@ -63,17 +61,16 @@ def create_new_process(msg):
     create new process
     :param msg: the command from server
     """
-    global computers,process_manager
+    global computers, process_manager
     ip = msg.split("_")[1]
     mac = msg.split("_")[2]
-    computers.update({ip:mac})
+    computers.update({ip: mac})
     dir = fr"python C:\Users\admin\Documents\Uri\Project_YB\POC\POC_process.py {ip} {mac} {router_ip}"
 
-    process_manager[ip] = Thread(target=run_process_event,args=(dir, ))
+    process_manager[ip] = Thread(target=run_process_event, args=(dir,))
     process_manager[ip].demone = True
     process_manager[ip].start()
     print("f")
-
 
 
 def modify_rout(msg):
@@ -82,7 +79,8 @@ def modify_rout(msg):
     :param msg:
     """
     global router_table
-    router_table.append((msg.split("_")[1].split(",")[0],int(msg.split("_")[1].split(",")[1])))
+    router_table.update(
+        {msg.split("_")[1].split(",")[0]: (int(msg.split("_")[1].split(",")[1]), msg.split("_")[1].split(",")[2])})
 
 
 def delete_process(msg):
@@ -96,24 +94,69 @@ def delete_process(msg):
     process_manager[ip].terminate()
 
 
+def check_rout(dst):
+    """
+
+    :param dst:
+    :return:
+    """
+    global router_table
+    for ip, tup in router_table:
+        if ip.split(".")[0] == dst.split(".")[0] and ip.split(".")[1] == dst.split(".")[1]:
+            return tup[1]
+
+
 def send_tcp(msg):
     """
-    
-    :param msg: 
-    :return: 
+    send tcp packet from one of the processes
+    :param msg: command from the server.
     """
-    global computers
     data = msg.split("_")
+    f = open("req.text", "a")
+    f.write(f"{data[1]}:SENDTCP|{data[2]}|{data[3]}\n")  # src dst payload
+    f.close()
+    # sc.send(sc.Ether(dst=computers[data[1]][1]) / sc.IP(
+    #    dst=computers[data[1]][0]) / sc.TCP() / f"SENDTCP|{computers[data[2]]}|{computers[data[2]]}|{data[3]}")
+    packet = sc.sniff(count=1, filter=f"src host {data[1]} and tcp")
+    # data = (packet.load).decode()
+    sc.send(
+        sc.IP(dst=check_rout(data[1])) / sc.TCP() / f"TCP|{packet[IP].src}|{packet[IP].dst}|{(packet.load).decode()}")
 
-    sc.send(sc.Ether(dst=computers[data[1]][1]) / sc.IP(
-        dst=computers[data[1]][0]) / sc.TCP() / f"SENDTCP|{computers[data[2]][1]}|{computers[data[2]][0]}|{data[3]}")
-    packet = sniff(count=1, filter=f"src host {computers[data[2]][1]}")
-    data = (packet.load).decode()
+
+def send_ping(msg):
+    """
+    send ping packet from one of the processes.
+    :param msg: command from the server.
+    """
+    data = msg.split("_")
+    f = open("req.text", "a")
+    f.write(f"{data[1]}:SENDPING|{data[2]}\n")
+    f.close()
+    packet = sc.sniff(count=1, filter=f"src host {data[1]} and ICMP")
+    sc.send(
+        sc.IP(dst=check_rout(data[1])) / sc.TCP() / f"ICMP|{packet[IP].src}|{packet[IP].dst}")
+
+
+def sniff_packet():
+    """
+
+    :return:
+    """
+    packet = sc.sniff(count=1, filter=f"dst host {sc.get_if_addr(sc.conf.iface)}")
+    packet = packet.load.decode().split("|")
+    packet_type = packet[0]
+    if packet_type == "TCP":
+        sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.TCP() / packet[3])
+    elif packet_type == "ICMP":
+        sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.ICMP())
+
+    sc.send()
 
 
 def receive():
     global msg
     """Handles receiving of messages."""
+    sniff_tread = Thread(ta)
     while True:
         # receiving messages
         try:
@@ -129,6 +172,9 @@ def receive():
 
             if "tcp" in msg:
                 send_tcp(msg)
+
+            if "ping" in msg:
+                send_ping(msg)
 
             if "routadd" in msg:
                 modify_rout(msg)

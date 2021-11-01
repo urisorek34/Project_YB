@@ -84,6 +84,25 @@ def input_user():
                     print(comp)
                     print(f"Total of {count} routers")
 
+            if command == "ping":
+                # ping msg
+                print(f"src options : {sub_comp[comm_addr]}")
+                src = input("source (ip) --> ")
+                while src not in sub_comp[comm_addr]:
+                    src = input("ip doesn't exist, try again --> ")
+                # print dst options
+                print(f"destination options:")
+                [print(sub_comp[ip]) for ip in sub_comp]
+
+                dst = input("destination (ip) --> ")
+                for ip, ips in sub_comp.items():
+                    if dst not in ips and dst in sub_comp.keys():
+                        command = f"ping_{src}_{dst}"
+                        break
+                if command == "ping":
+                    print("not right destination")
+
+
             if command == "tcp":
                 # tcp msg
                 print(f"src options : {sub_comp[comm_addr]}")
@@ -95,7 +114,6 @@ def input_user():
                 [print(sub_comp[ip]) for ip in sub_comp]
 
                 dst = input("destination (ip) --> ")
-                print("dest options")
                 for ip, ips in sub_comp.items():
                     if dst not in ips and dst in sub_comp.keys():
                         msg = input("data --> ")
@@ -105,10 +123,11 @@ def input_user():
                     print("not right destination")
 
             if command == "routadd":
+                # add line in the routing table
                 print(f"route options : {computers_connected.keys()}")
-                add = input("enter 'ip,subnet mask' --> ")
-                routing_tables[comm_addr].append((add.split(",")[0],add.split(",")[1]))
-                command = f"routadd_({add})"
+                add = input("enter 'destination,subnet mask,interface' --> ")
+                routing_tables[comm_addr].append((add.split(",")[0],add.split(",")[1],add.split(",")[2]))
+                command = f"routadd_{add}"
 
             if command == "seerout":
                 print(routing_tables)
