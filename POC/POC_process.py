@@ -1,6 +1,7 @@
 from scapy.all import*
 import sys
 from threading import Thread
+import os
 
 if len(sys.argv) > 1:
     print(sys.argv)
@@ -10,6 +11,7 @@ if len(sys.argv) > 1:
 else:
     print("no args")
 arp_table = [] # list of tuples (ip,mac)
+
 def send_recieve():
     """
     sniffing packets and sending packets required
@@ -20,20 +22,28 @@ def send_recieve():
 
     while 1:
         # the loop that runs the process, it sniffs and answer according to the packet
-        f = open("req.txt","r+")
-        file = f.readlines()
-        for line in file:
-            if ip_src+":" in line:
-                file.remove(line)
-                pack= line.split(":")[1].split("|")
-                if "SENDTCP" in pack:
-                    send_TCP(pack[1], pack[2])
-                elif "SENDPING" in pack:
-                    send_PING(pack[1])
-        f.seek(0)
-        for lin in file:
-            f.write(lin)
-        f.close()
+        if os.path.exists("req.txt"):
+            f = open("req.txt","r+")
+            file = f.readlines()
+            for line in file:
+                if ip_src+":" in line:
+                    file.remove(line)
+                    pack= line.split(":")[1].split("|")
+                    if "SENDTCP" in pack:
+                        send_TCP(pack[1], pack[2])
+                    elif "SENDPING" in pack:
+                        send_PING(pack[1])
+                    elif "EXIT__" in pack:
+                        f.seek(0)
+                        for lin in file:
+                            f.write(lin)
+                        f.close()
+                        print(f"goodbye {ip_src}, and thanks for the fish!")
+                        sys.exit()
+            f.seek(0)
+            for lin in file:
+                f.write(lin)
+            f.close()
         #packet = sniff(count=1,filter=f"dst host {ip_src}")
         #packet_type = packet.summary().split(" ")[4]
 
@@ -42,11 +52,13 @@ def sniff_packet():
 
     :return:
     """
-    packet = sniff(count=1,filter=f"dst host {ip_src}")
-    print(packet.summary())
-    packet_type = packet.summary().split(" ")[4]
-    if packet_type == "TCP":
-        print((packet.load).decode())
+    while 1:
+        packet = sniff(count=1,filter=f"dst host {ip_src}")
+        print(packet.summary())
+        packet_type = packet.summary().split(" ")[4]
+        if packet_type == "TCP":
+            print((packet.load).decode())
+
 
 
 def send_TCP(dst_ip,payload):
@@ -64,6 +76,6 @@ def send_PING(dst_ip):
     :param dst_ip: the dst ip to send to
     """
     packet = Ether(src=mac_src)/IP(src=ip_src,dst= dst_ip)/ICMP()
-    print(sr(packet))
+    print(sr1(packet).summary() + "\n got it!")
 
 send_recieve()

@@ -7,7 +7,7 @@ from threading import Thread
 import os
 from multiprocessing import Process
 import random
-
+import sys
 # vars for communication with host
 msg = ""
 PORT = 55555
@@ -91,7 +91,9 @@ def delete_process(msg):
     global computers, process_manager
     ip = msg.split("_")[1]
     computers.pop(ip)
-    process_manager[ip].terminate()
+    f = open("req.text", "a")
+    f.write(f"{ip}:EXIT__")  # src dst payload
+    f.close()
 
 
 def check_rout(dst):
@@ -142,21 +144,29 @@ def sniff_packet():
 
     :return:
     """
-    packet = sc.sniff(count=1, filter=f"dst host {sc.get_if_addr(sc.conf.iface)}")
-    packet = packet.load.decode().split("|")
-    packet_type = packet[0]
-    if packet_type == "TCP":
-        sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.TCP() / packet[3])
-    elif packet_type == "ICMP":
-        sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.ICMP())
+    while 1:
+        packet = sc.sniff(count=1, filter=f"dst host {sc.get_if_addr(sc.conf.iface)}")
+        try:
 
-    sc.send()
+            packet = packet.load.decode().split("|")
+        except AttributeError:
+            continue
+
+        packet_type = packet[0]
+        if packet_type == "TCP":
+            sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.TCP() / packet[3])
+        elif packet_type == "ICMP":
+            sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.ICMP())
+
+        sc.send()
 
 
 def receive():
     global msg
     """Handles receiving of messages."""
-    sniff_tread = Thread(ta)
+    sniff_tread = Thread(target=sniff_packet)
+    sniff_tread.daemon = True
+    sniff_tread.start()
     while True:
         # receiving messages
         try:
