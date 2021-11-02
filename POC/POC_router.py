@@ -11,7 +11,7 @@ import sys
 # vars for communication with host
 msg = ""
 PORT = 55555
-HOST = "127.0.0.1"
+HOST = "172.16.8.181"
 ADDR = (HOST, PORT)
 
 # vars for communicaition inside the LAN
@@ -65,7 +65,7 @@ def create_new_process(msg):
     ip = msg.split("_")[1]
     mac = msg.split("_")[2]
     computers.update({ip: mac})
-    dir = fr"python C:\Users\admin\Documents\Uri\Project_YB\POC\POC_process.py {ip} {mac} {router_ip}"
+    dir = fr"python C:\Users\u101040.DESHALIT\Desktop\POC\POC_process.py {ip} {mac} {router_ip}"
 
     process_manager[ip] = Thread(target=run_process_event, args=(dir,))
     process_manager[ip].demone = True
@@ -114,15 +114,17 @@ def send_tcp(msg):
     :param msg: command from the server.
     """
     data = msg.split("_")
-    f = open("req.text", "a")
+    f = open("req.txt", "a")
     f.write(f"{data[1]}:SENDTCP|{data[2]}|{data[3]}\n")  # src dst payload
     f.close()
     # sc.send(sc.Ether(dst=computers[data[1]][1]) / sc.IP(
     #    dst=computers[data[1]][0]) / sc.TCP() / f"SENDTCP|{computers[data[2]]}|{computers[data[2]]}|{data[3]}")
     packet = sc.sniff(count=1, filter=f"src host {data[1]} and tcp")
-    # data = (packet.load).decode()
+    print(packet[0].summary())
+    #data = (packet[0].load).decode()
+    #print(check_rout(data[2]))
     sc.send(
-        sc.IP(dst=check_rout(data[1])) / sc.TCP() / f"TCP|{packet[IP].src}|{packet[IP].dst}|{(packet.load).decode()}")
+        sc.IP(dst=router_table[data[2]][1]) / sc.TCP() / f"TCP|{packet[0][sc.IP].src}|{packet[0][sc.IP].dst}|{(packet[0].load).decode()}")
 
 
 def send_ping(msg):
@@ -135,8 +137,9 @@ def send_ping(msg):
     f.write(f"{data[1]}:SENDPING|{data[2]}\n")
     f.close()
     packet = sc.sniff(count=1, filter=f"src host {data[1]} and ICMP")
+    print(packet)
     sc.send(
-        sc.IP(dst=check_rout(data[1])) / sc.TCP() / f"ICMP|{packet[IP].src}|{packet[IP].dst}")
+        sc.IP(dst=check_rout(data[1])) / sc.TCP() / f"ICMP|{packet[0][sc.IP].src}|{packet[0][sc.IP].dst}")
 
 
 def sniff_packet():
@@ -148,17 +151,17 @@ def sniff_packet():
         packet = sc.sniff(count=1, filter=f"dst host {sc.get_if_addr(sc.conf.iface)}")
         try:
 
-            packet = packet.load.decode().split("|")
-        except AttributeError:
+            packet = packet[0].load.decode().split("|")
+        except Exception as e:
             continue
+        else:
+            packet_type = packet[0]
+            if packet_type == "TCP":
+                sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.TCP() / packet[3])
+            elif packet_type == "ICMP":
+                sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.ICMP())
 
-        packet_type = packet[0]
-        if packet_type == "TCP":
-            sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.TCP() / packet[3])
-        elif packet_type == "ICMP":
-            sc.send(sc.IP(src=packet[1], dst=packet[2], ttl=127) / sc.ICMP())
 
-        sc.send()
 
 
 def receive():

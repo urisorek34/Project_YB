@@ -117,13 +117,15 @@ def input_user():
                 [print(sub_comp[ip]) for ip in sub_comp]
 
                 dst = input("destination (ip) --> ")
-                for ip, ips in sub_comp.items():
-                    if dst not in ips and dst in sub_comp.keys():
-                        msg = input("data --> ")
-                        command = f"tcp_{src}_{dst}_{msg}"
-                        break
-                if command == "tcp":
-                    print("not right destination")
+                #for ip, ips in sub_comp.items():
+                #    if dst not in ips and dst in sub_comp.keys():
+                #        msg = input("data --> ")
+                #        command = f"tcp_{src}_{dst}_{msg}"
+                #        break
+                #if command == "tcp":
+                #    print("not right destination")
+                msg = input("data --> ")
+                command = f"tcp_{src}_{dst}_{msg}"
 
             if command == "routadd":
                 # add line in the routing table

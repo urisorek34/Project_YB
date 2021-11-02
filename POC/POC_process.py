@@ -22,28 +22,31 @@ def send_recieve():
 
     while 1:
         # the loop that runs the process, it sniffs and answer according to the packet
-        if os.path.exists("req.txt"):
-            f = open("req.txt","r+")
-            file = f.readlines()
-            for line in file:
-                if ip_src+":" in line:
-                    file.remove(line)
-                    pack= line.split(":")[1].split("|")
-                    if "SENDTCP" in pack:
-                        send_TCP(pack[1], pack[2])
-                    elif "SENDPING" in pack:
-                        send_PING(pack[1])
-                    elif "EXIT__" in pack:
-                        f.seek(0)
-                        for lin in file:
-                            f.write(lin)
-                        f.close()
-                        print(f"goodbye {ip_src}, and thanks for the fish!")
-                        sys.exit()
-            f.seek(0)
-            for lin in file:
-                f.write(lin)
-            f.close()
+        #if os.path.exists("req.txt"):
+        f = open("req.txt","r")
+        file = f.readlines()
+        for line in file:
+            if ip_src+":" in line:
+                file.remove(line)
+                pack= line.split(":")[1].split("|")
+                if "SENDTCP" in pack:
+                    print("sfdsf")
+                    send_TCP(pack[1], pack[2])
+                elif "SENDPING" in pack:
+                    send_PING(pack[1])
+                elif "EXIT__" in pack:
+                    f.seek(0)
+                    for lin in file:
+                        f.write(lin)
+                    f.close()
+                    print(f"goodbye {ip_src}, and thanks for the fish!")
+                    sys.exit()
+        f.close()
+        f = open("req.txt","w")
+        f.seek(0)
+        for lin in file:
+            f.write("")
+        f.close()
         #packet = sniff(count=1,filter=f"dst host {ip_src}")
         #packet_type = packet.summary().split(" ")[4]
 
@@ -54,10 +57,10 @@ def sniff_packet():
     """
     while 1:
         packet = sniff(count=1,filter=f"dst host {ip_src}")
-        print(packet.summary())
-        packet_type = packet.summary().split(" ")[4]
+        print(packet[0].summary())
+        packet_type = packet[0].summary().split(" ")[4]
         if packet_type == "TCP":
-            print((packet.load).decode())
+            print((packet[0].load).decode())
 
 
 
@@ -67,7 +70,8 @@ def send_TCP(dst_ip,payload):
     :param dst_ip: the dst ip to send to
     :param payload: the given payload
     """
-    packet = Ether(src=mac_src)/IP(src=ip_src,dst=dst_ip)/TCP()/payload
+    #packet = Ether(src=mac_src)/IP(src=ip_src,dst=dst_ip)/TCP()/payload
+    packet =  IP(src=ip_src, dst=dst_ip) / TCP() / payload
     send(packet)
 
 def send_PING(dst_ip):
